@@ -1,11 +1,20 @@
-HIPPIES PWA INSTALLATION
+ULTIMADED HIPPIES — corrected full deployment package
 
-1. Upload this entire folder to a web host with HTTPS.
-2. Open https://YOUR-DOMAIN/index.html in Chrome on Android.
-3. Use the Install prompt, or Chrome menu -> Add to Home screen / Install app.
-4. The portal then opens like an app.
+Replace these root files in GitHub:
+index.html
+manifest.webmanifest
+sw.js
+icon-192.png
+icon-512.png
 
-IMPORTANT:
-- A PWA cannot be installed reliably by opening index.html directly with file://.
-- HTTPS is required for the service worker on normal production hosting (localhost is also allowed for development).
-- Firebase and Jitsi continue to use their online services.
+License fix:
+- Single Firebase license controller; duplicate developer controls removed.
+- Default unlock is exactly 7 days from the unlock action.
+- 30/90/180/365 days and custom expiry are supported.
+- Firebase portalSettings/license is the shared source of truth.
+- Active license no longer hides the member login screen.
+
+PWA fix:
+- UH logo icons, manifest, service worker, and install prompt.
+
+Firebase note: Firestore rules must permit the intended operations on portalSettings/license and portalData/main.

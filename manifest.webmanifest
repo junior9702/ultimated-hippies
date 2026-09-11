@@ -1,18 +1,20 @@
 {
+  "id": "./",
+  "name": "ULTIMADED HIPPIES Member Portal",
   "short_name": "HIPPIES",
-  "name": "ULTIMADED HIPPIES Portal",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0b5cff",
-  "description": "HIPPIES member portal with meetings, table banking, elections and member services.",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "ULTIMADED HIPPIES member portal",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./icon-512.png",
