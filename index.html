@@ -28,11 +28,11 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
 @media(max-width:700px){.sidebar{position:relative;width:100%;height:auto}.main{margin:0;width:100%;padding:12px}body{display:block}header{flex-direction:column;align-items:flex-start}.g4,.g3,.g2{grid-template-columns:1fr}}
 
 .logo-wrap{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.logo{width:62px;height:62px;object-fit:cover;border-radius:50%;border:2px solid #facc15;background:#000}
+.logo{width:190px;height:62px;object-fit:contain;border:0;border-radius:0;background:#000}
 .brand-title{font-weight:900;font-size:18px;letter-spacing:.4px}
 .certificate-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px}
 .certificate-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}
-.certificate-head img{width:76px;height:76px;object-fit:cover;border-radius:50%;border:2px solid #facc15;background:#000}
+.certificate-head img{width:140px;height:76px;object-fit:contain;border:0;border-radius:0;background:#000}
 .certificate-frame{background:#f8fafc;border:2px solid #d4af37;border-radius:10px;padding:10px;text-align:center;overflow:auto}
 .certificate-frame img{display:block;max-width:100%;height:auto;max-height:78vh;margin:auto;border-radius:4px}
 .certificate-label{font-size:11px;color:#64748b;margin-top:8px}
@@ -45,7 +45,7 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
 
 .auth-screen{position:fixed;inset:0;background:linear-gradient(135deg,#052e16,#14532d 55%,#166534);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .auth-box{width:min(520px,100%);background:#fff;border-radius:18px;box-shadow:0 25px 70px #0006;padding:30px}
-.auth-logo{width:92px;height:92px;object-fit:cover;border-radius:50%;border:3px solid #facc15;display:block;margin:0 auto 14px;background:#000}
+.auth-logo{width:min(340px,90%);height:125px;object-fit:contain;border:0;border-radius:0;display:block;margin:0 auto 14px;background:#000}
 .auth-box h1{text-align:center;color:#166534;font-size:27px;margin-bottom:5px}
 .auth-box .auth-sub{text-align:center;color:#64748b;margin-bottom:22px}
 .auth-tabs{display:flex;gap:8px;margin-bottom:20px}
@@ -105,6 +105,34 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
 <meta name="theme-color" content="#000000">
 </head>
 <body>
+<script>
+// HIPPIES UI bootstrap: define safe globals before the application loads.
+window.HIPPIES_UI = window.HIPPIES_UI || {};
+window.HIPPIES_UI.switchAuth = function(mode){
+  const login=document.getElementById('loginPanel');
+  const pub=document.getElementById('publicPanel');
+  const loginTab=document.getElementById('memberLoginTab');
+  const pubTab=document.getElementById('publicTab');
+  if(login) login.classList.toggle('active', mode==='login');
+  if(pub) pub.classList.toggle('active', mode==='public');
+  if(loginTab) loginTab.className=mode==='login'?'primary':'outline';
+  if(pubTab) pubTab.className=mode==='public'?'primary':'outline';
+  if(typeof window.clearAuthMessages==='function') window.clearAuthMessages();
+};
+window.HIPPIES_UI.memberLogin = function(e){
+  if(typeof window.__hippiesMemberLogin==='function') return window.__hippiesMemberLogin(e);
+  e && e.preventDefault();
+  const err=document.getElementById('authError');
+  if(err){err.textContent='Please wait while the portal finishes loading, then try again.';err.style.display='block';}
+  setTimeout(()=>{if(typeof window.__hippiesMemberLogin==='function') window.__hippiesMemberLogin(e);},300);
+};
+window.HIPPIES_UI.enterPublic = function(section){
+  if(typeof window.__hippiesEnterPublic==='function') return window.__hippiesEnterPublic(section);
+};
+window.switchAuth = window.HIPPIES_UI.switchAuth;
+window.memberLogin = window.HIPPIES_UI.memberLogin;
+</script>
+
 <div class="auth-screen" id="authScreen">
   <div class="auth-box">
     <img class="auth-logo" id="authLogo" alt="ULTIMATED HIPPIES logo">
@@ -112,8 +140,8 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
     <div class="auth-sub">Member Portal</div><div class="auth-note">New members may access only the Constitution and Membership Application. The Members Register and Pending Applications are private member areas.</div>
 
     <div class="auth-tabs">
-      <button class="primary" id="memberLoginTab" onclick="switchAuth('login')">Member Login</button>
-      <button class="outline" id="publicTab" onclick="switchAuth('public')">New Member Access</button>
+      <button class="primary" id="memberLoginTab" onclick="window.HIPPIES_UI.switchAuth('login')">Member Login</button>
+      <button class="outline" id="publicTab" onclick="window.HIPPIES_UI.switchAuth('public')">New Member Access</button>
     </div>
 
     <div id="authError" class="auth-error"></div>
@@ -121,7 +149,7 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
 
     <div id="loginPanel" class="auth-panel active">
       <div class="auth-note"><b>Registered members:</b> enter the name and phone number exactly as recorded in the Members Register.</div>
-      <form onsubmit="memberLogin(event)">
+      <form onsubmit="window.HIPPIES_UI.memberLogin(event)">
         <div class="field">
           <label>Member Name</label>
           <input id="loginName" autocomplete="name" required>
@@ -1184,6 +1212,8 @@ async function memberLogin(e){
   show('dashboard',document.querySelector('.nav li.member-only'));
   toast('Welcome, '+member.name+'.');
 }
+// Register the real handlers as soon as they are declared.
+window.__hippiesMemberLogin = memberLogin;
 function enterPublic(section){
   currentMember=null;
   sessionStorage.removeItem('ultimatedHappiesCurrentMember');
@@ -2204,7 +2234,9 @@ function adminLockPortal(){if(confirm('Lock the portal for all users?'))return s
 // Expose functions used by inline HTML event handlers.
 // This prevents "switchAuth/memberLogin is not defined" errors.
 window.switchAuth = switchAuth;
+window.__hippiesMemberLogin = memberLogin;
 window.memberLogin = memberLogin;
+window.__hippiesEnterPublic = enterPublic;
 window.enterPublic = enterPublic;
 window.logout = logout;
 window.clearAuthMessages = clearAuthMessages;

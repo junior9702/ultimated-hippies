@@ -1,4 +1,4 @@
-const CACHE_NAME = "ultimated-hippies-v4";
+const CACHE_NAME = "ultimated-hippies-v5";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./logo.png"];
 self.addEventListener("install", event => {
   self.skipWaiting();
