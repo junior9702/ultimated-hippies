@@ -1,14 +1,12 @@
 {
-  "id": "./",
-  "name": "ULTIMADED HIPPIES Member Portal",
-  "short_name": "HIPPIES",
-  "start_url": "./index.html",
+  "name": "ULTIMADED HIPPIES Management Portal",
+  "short_name": "ULTIMADED HIPPIES",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#000000",
-  "description": "ULTIMADED HIPPIES member portal",
-  "orientation": "portrait-primary",
+  "theme_color": "#166534",
+  "description": "ULTIMADED HIPPIES member management portal",
   "icons": [
     {
       "src": "./icon-192.png",
@@ -20,7 +18,7 @@
       "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

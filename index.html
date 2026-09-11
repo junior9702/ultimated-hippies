@@ -143,7 +143,7 @@ button{border:0;border-radius:7px;padding:10px 15px;font-weight:700;cursor:point
 </div>
 
 <aside class="sidebar">
-  <div class="brand"><div class="logo-wrap"><img class="logo" src="./icon-192.png" alt="ULTIMATED HIPPIES logo"><div><div class="brand-title">ULTIMATED HIPPIES</div><span>MANAGEMENT PORTAL</span></div></div></div>
+  <div class="brand"><div class="logo-wrap"><img class="logo" src="./logo.png" alt="ULTIMATED HIPPIES logo"><div><div class="brand-title">ULTIMATED HIPPIES</div><span>MANAGEMENT PORTAL</span></div></div></div>
   <div class="role">Current access <b id="roleLabel">Public Access</b><button class="outline logout-btn" id="logoutBtn" onclick="logout()" style="display:none;margin-top:9px;width:100%">Log Out</button></div>
   <nav><ul class="nav">
     <li class="member-only" onclick="show('dashboard',this)">📊 Dashboard</li>
@@ -2231,7 +2231,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   if(document.getElementById('elMembers'))document.getElementById('elMembers').value=db.members.length;
   if(document.getElementById('voterName'))document.getElementById('voterName').textContent=currentMember?currentMember.name:'Not logged in';
   applyAccess();
-  const logo=document.querySelector('.logo');const authLogo=document.getElementById('authLogo');if(authLogo&&logo)authLogo.src=logo.src||'';
+  const logo=document.querySelector('.logo');const authLogo=document.getElementById('authLogo');if(authLogo&&logo)authLogo.src='./logo.png';
   await loadDatabaseFromFirebase();renderAll();
   // Start the shared license listener before finishing initialization.
   await startGlobalLicenseSync();
@@ -2253,6 +2253,27 @@ window.addEventListener('DOMContentLoaded',async function(){
   if(!currentMember){document.getElementById('authScreen').style.display='flex';show('constitution',document.querySelector('.nav li.public-only'));}
   else{document.getElementById('authScreen').style.display='none';show('dashboard',document.querySelector('.nav li.member-only'));}
 });</script>
-<script>let hippiesDeferredInstallPrompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();hippiesDeferredInstallPrompt=e;if(!localStorage.getItem('hippiesInstallDismissed'))setTimeout(showHippiesInstallPrompt,1200);});function showHippiesInstallPrompt(){if(document.getElementById('hippiesInstallPrompt')||!hippiesDeferredInstallPrompt)return;const box=document.createElement('div');box.id='hippiesInstallPrompt';box.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:5000;background:#fff;border:2px solid #ca8a04;border-radius:16px;padding:16px;box-shadow:0 20px 60px #0005;max-width:520px;margin:auto';box.innerHTML='<div style="display:flex;gap:12px;align-items:center"><img src="./icon-192.png" style="width:54px;height:54px;border-radius:12px;object-fit:cover;background:#000"><div style="flex:1"><b style="font-size:15px;color:#166534">Install ULTIMADED HIPPIES</b><div style="font-size:12px;color:#475569;margin-top:4px">Install the portal on your phone or computer for quick access.</div></div></div><div style="display:flex;gap:8px;margin-top:12px"><button class="success" id="hippiesInstallBtn" style="flex:1">Install App</button><button class="outline" id="hippiesInstallLater">Later</button></div>';document.body.appendChild(box);document.getElementById('hippiesInstallBtn').onclick=async()=>{if(!hippiesDeferredInstallPrompt)return;hippiesDeferredInstallPrompt.prompt();await hippiesDeferredInstallPrompt.userChoice;hippiesDeferredInstallPrompt=null;box.remove();};document.getElementById('hippiesInstallLater').onclick=()=>{localStorage.setItem('hippiesInstallDismissed','1');box.remove();};}window.addEventListener('appinstalled',()=>{localStorage.removeItem('hippiesInstallDismissed');document.getElementById('hippiesInstallPrompt')?.remove();hippiesDeferredInstallPrompt=null;});if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker registration failed',e)));</script>
+
+<script>
+/* HIPPIES compatibility bridge: inline HTML handlers must always resolve globally. */
+(function(){
+  function fallbackSwitchAuth(mode){
+    const login=document.getElementById('loginPanel');
+    const pub=document.getElementById('publicPanel');
+    const loginTab=document.getElementById('memberLoginTab');
+    const pubTab=document.getElementById('publicTab');
+    if(login) login.classList.toggle('active', mode==='login');
+    if(pub) pub.classList.toggle('active', mode==='public');
+    if(loginTab) loginTab.className=mode==='login'?'primary':'outline';
+    if(pubTab) pubTab.className=mode==='public'?'primary':'outline';
+    if(typeof window.clearAuthMessages==='function') window.clearAuthMessages();
+  }
+  window.switchAuth = (typeof window.switchAuth==='function') ? window.switchAuth : fallbackSwitchAuth;
+  if(typeof window.memberLogin!=='function' && typeof memberLogin==='function') window.memberLogin=memberLogin;
+  if(typeof window.enterPublic!=='function' && typeof enterPublic==='function') window.enterPublic=enterPublic;
+  if(typeof window.logout!=='function' && typeof logout==='function') window.logout=logout;
+})();
+</script>
+<script>let hippiesDeferredInstallPrompt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();hippiesDeferredInstallPrompt=e;if(!localStorage.getItem('hippiesInstallDismissed'))setTimeout(showHippiesInstallPrompt,1200);});function showHippiesInstallPrompt(){if(document.getElementById('hippiesInstallPrompt')||!hippiesDeferredInstallPrompt)return;const box=document.createElement('div');box.id='hippiesInstallPrompt';box.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:5000;background:#fff;border:2px solid #ca8a04;border-radius:16px;padding:16px;box-shadow:0 20px 60px #0005;max-width:520px;margin:auto';box.innerHTML='<div style="display:flex;gap:12px;align-items:center"><img src="./icon-192.png" style="width:54px;height:54px;border-radius:12px;object-fit:cover;background:#000"><div style="flex:1"><b style="font-size:15px;color:#166534">Install ULTIMADED HIPPIES</b><div style="font-size:12px;color:#475569;margin-top:4px">Install the portal on your phone or computer for quick access.</div></div></div><div style="display:flex;gap:8px;margin-top:12px"><button class="success" id="hippiesInstallBtn" style="flex:1">Install App</button><button class="outline" id="hippiesInstallLater">Later</button></div>';document.body.appendChild(box);document.getElementById('hippiesInstallBtn').onclick=async()=>{if(!hippiesDeferredInstallPrompt)return;hippiesDeferredInstallPrompt.prompt();await hippiesDeferredInstallPrompt.userChoice;hippiesDeferredInstallPrompt=null;box.remove();};document.getElementById('hippiesInstallLater').onclick=()=>{localStorage.setItem('hippiesInstallDismissed','1');box.remove();};}window.addEventListener('appinstalled',()=>{localStorage.removeItem('hippiesInstallDismissed');document.getElementById('hippiesInstallPrompt')?.remove();hippiesDeferredInstallPrompt=null;});if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=4').catch(e=>console.warn('PWA service worker registration failed',e)));</script>
 </body>
 </html>
