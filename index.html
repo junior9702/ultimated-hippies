@@ -2248,7 +2248,7 @@ window.rejectApp = rejectApp;
 
 window.openDeveloperAccess = openDeveloperAccess;
 window.closeDeveloperControl = closeDeveloperControl;
-window.verifyDeveloperPin = verifyDeveloperPin;
+window.verifyDeveloperPin = unlockDeveloperAccess;
 window.developerUnlockPortal = developerUnlockPortal;
 window.developerLockPortal = developerLockPortal;
 window.developerRefreshStatus = developerRefreshStatus;
@@ -2263,7 +2263,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   if(document.getElementById('elMembers'))document.getElementById('elMembers').value=db.members.length;
   if(document.getElementById('voterName'))document.getElementById('voterName').textContent=currentMember?currentMember.name:'Not logged in';
   applyAccess();
-  const logo=document.querySelector('.logo');const authLogo=document.getElementById('authLogo');if(authLogo&&logo)authLogo.src='./logo.png';
+  const logo=document.querySelector('.logo');const authLogo=document.getElementById('authLogo');if(authLogo&&logo)authLogo.src='./logo.png'; if(authLogo.naturalWidth===0) authLogo.src='./icon-512.png';
   await loadDatabaseFromFirebase();renderAll();
   // Start the shared license listener before finishing initialization.
   await startGlobalLicenseSync();
