@@ -82,7 +82,7 @@ FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
 
 Recommended explicit callback URLs:
-Vercel: https://YOUR-DOMAIN/api/payhero-callback
+Vercel: https://https://ultimated-hippies.vercel.app/api/payhero/callback
 Netlify: https://YOUR-DOMAIN/api/payhero-callback
 
 IMPORTANT: The callback endpoint is the source of truth for payment completion. An STK request being accepted is not a completed payment. PayHero's callback reports final success/failed status; only a successful callback is marked Verified.
