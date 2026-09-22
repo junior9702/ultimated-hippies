@@ -1831,6 +1831,26 @@ function renderAll(){
   renderDividendRun();
   renderPayments();
 
+  // Reflect PayHero callback results immediately in the visible payment panels.
+  // The Firestore realtime listener calls renderAll(), so these labels move from
+  // "Awaiting Confirmation" to the final callback result without a page refresh.
+  const stkPayments=payments.filter(x=>x.method==='M-PESA STK Push');
+  const latestStk=stkPayments[0];
+  const statusText=latestStk ? (
+    latestStk.status==='Verified'
+      ? 'Payment confirmed by PayHero. M-PESA transaction has been recorded in the appropriate ledger.'
+      : latestStk.status==='Failed'
+        ? 'M-PESA payment was not completed: '+(latestStk.callbackMessage||'PayHero reported a failed transaction.')
+        : 'STK Push sent. Check the phone and enter the M-PESA PIN. Awaiting confirmation.'
+  ) : '';
+  ['payheroStatus','contribPayStatus','tbPayStatus','merryPayStatus'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e && latestStk){
+      e.style.display='block';
+      e.textContent=statusText+(latestStk.reference?' Reference: '+latestStk.reference+'.':'');
+    }
+  });
+
   setHTML('contribTable',contributions.map(x=>`<tr><td>${x.date||'—'}</td><td>${x.member||'—'}</td><td>${money(x.amount)}</td><td>${x.desc||'—'}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No contributions recorded.</td></tr>');
   setHTML('merryTable',merry.map(x=>`<tr><td>${x.date||'—'}</td><td>${x.member||'—'}</td><td>${money(x.amount)}</td><td>${x.beneficiary||'—'}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No sessions recorded.</td></tr>');
   setHTML('welfareTable',welfare.map(x=>`<tr><td>${x.date||'—'}</td><td>${x.case||'—'}</td><td>${x.member||'—'}</td><td>${money(x.contribution)}</td><td>${money(x.office)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No welfare cases recorded.</td></tr>');
