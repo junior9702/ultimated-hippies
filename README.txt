@@ -42,11 +42,11 @@ PAYHERO STK PUSH SETUP
 1. Deploy this project to Vercel (the /api/payhero-stk.js serverless function requires Vercel).
 2. In PayHero, create/register the collection channel for the group's destination Paybill/Till and obtain its channel ID.
 3. In Vercel > Project Settings > Environment Variables, set:
-   PAYHERO_API_USERNAME = XW0QO3IWF75V61YHIr2D
-   PAYHERO_API_PASSWORD = SN42hrIszM9wM4jDFjmr3sUwOc0iVDeXHIzozjBV
+   PAYHERO_API_USERNAME = grcRFMk0dsYq9O3cFG6m
+   PAYHERO_API_PASSWORD =0hYjjesFmnacb0MCESZ0P8dPMpB3VeGLNt7ikoLA
    PAYHERO_CHANNEL_ID = 12910
    PAYHERO_ACCOUNT_ID = 12405
-   PAYHERO_CALLBACK_URL =https://lipwa.link/12405
+   PAYHERO_CALLBACK_URL = https://ultimated-hippies.vercel.app//api/payhero-callback
 4. Redeploy after setting environment variables.
 5. Redeploy after changing any environment variable.
 6. Test using a low amount and a phone you control.
@@ -56,3 +56,33 @@ Current PayHero API production base: https://api.payhero.africa. The payment req
 SECURITY / COMPLETION NOTE
 Credentials are server-side only. This package initiates STK Push and displays the returned reference; it does not mark a payment as verified. A deployed HTTPS callback receiver and persistent database verification workflow must be configured before automated ledger crediting is enabled. Never treat initiation as successful payment.
 API details: https://docs.payhero.co.ke/ and https://payherokenya.com/2026/06/11/how-to-initiate-stk-push-for-any-bank-or-custom-paybill-in-kenya-using-pay-hero-kenya/
+
+PAYHERO AUTOMATIC CONFIRMATION + REAL-TIME LEDGER UPDATE
+- Added PayHero callback handlers for both Vercel (/api/payhero-callback) and Netlify (/.netlify/functions/payhero-callback, also available through /api/payhero-callback).
+- Successful PayHero callbacks change the matching payment from "STK Initiated — Awaiting Confirmation" to "Verified" automatically.
+- Failed/cancelled callbacks change the payment to "Failed" automatically.
+- New-member registration payments update the linked application paymentStatus automatically, while the existing 3-office-bearer approval rule remains unchanged.
+- The portal now listens to Firestore in real time, so the payment table/dashboard refreshes automatically in every open browser when the callback updates a payment.
+- New Member Access now includes a Ksh 1,500 registration-fee STK Push / retry control.
+
+DEPLOYMENT ENVIRONMENT VARIABLES FOR CALLBACKS
+PayHero:
+PAYHERO_API_USERNAME
+PAYHERO_API_PASSWORD
+PAYHERO_CHANNEL_ID
+PAYHERO_ACCOUNT_ID
+PAYHERO_CALLBACK_URL (optional if the deployment provides URL or VERCEL_URL; recommended to set explicitly)
+PAYHERO_BASE_URL (optional, default https://api.payhero.africa)
+
+Firebase Admin (server-side only; never put these in index.html):
+FIREBASE_SERVICE_ACCOUNT_JSON = the Firebase service-account JSON for the ultimate-hippies project
+OR use all three:
+FIREBASE_PROJECT_ID
+FIREBASE_CLIENT_EMAIL
+FIREBASE_PRIVATE_KEY
+
+Recommended explicit callback URLs:
+Vercel: https://YOUR-DOMAIN/api/payhero-callback
+Netlify: https://YOUR-DOMAIN/api/payhero-callback
+
+IMPORTANT: The callback endpoint is the source of truth for payment completion. An STK request being accepted is not a completed payment. PayHero's callback reports final success/failed status; only a successful callback is marked Verified.

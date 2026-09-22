@@ -20,7 +20,9 @@ export default async function handler(req, res) {
   if (!PAYHERO_API_PASSWORD) missing.push('PAYHERO_API_PASSWORD');
   if (!PAYHERO_CHANNEL_ID) missing.push('PAYHERO_CHANNEL_ID');
   if (!PAYHERO_ACCOUNT_ID) missing.push('PAYHERO_ACCOUNT_ID');
-  if (!PAYHERO_CALLBACK_URL) missing.push('PAYHERO_CALLBACK_URL');
+  // Derive a callback URL automatically when deployed, but allow an explicit override.
+  const callbackUrl = PAYHERO_CALLBACK_URL || (process.env.URL ? process.env.URL.replace(/\/$/, '') + '/api/payhero-callback' : process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL + '/api/payhero-callback' : '');
+  if (!callbackUrl) missing.push('PAYHERO_CALLBACK_URL (or URL/VERCEL_URL)');
   if (missing.length) {
     return res.status(503).json({
       success: false,
@@ -67,7 +69,7 @@ export default async function handler(req, res) {
         channel_id: channelId,
         account_id: accountId,
         external_reference: reference,
-        callback_url: PAYHERO_CALLBACK_URL
+        callback_url: callbackUrl
       })
     });
 
@@ -86,6 +88,7 @@ export default async function handler(req, res) {
       success: true,
       message: 'STK Push initiated',
       reference: data.reference || reference,
+      external_reference: data.external_reference || reference,
       provider_response: data
     });
   } catch (e) {

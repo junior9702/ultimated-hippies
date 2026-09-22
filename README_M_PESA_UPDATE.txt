@@ -35,3 +35,6 @@ PAYHERO_CALLBACK_URL
 PAYHERO_BASE_URL (optional; default: https://api.payhero.africa)
 
 Deploy the /api/payhero-stk.js function together with the frontend. Do not put PayHero credentials in index.html or other public frontend files.
+
+
+See SECURE_PAYHERO_SETUP.txt for the secure Netlify environment-variable setup.

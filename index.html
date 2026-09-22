@@ -234,7 +234,14 @@ window.memberLogin = window.HIPPIES_UI.memberLogin;
 <div class="field"><label>Signature Image</label><input id="aSignature" type="file" accept="image/*" required></div>
 <div class="field" style="grid-column:1/-1"><label>Reason / Purpose for Joining</label><textarea id="aReason" required></textarea></div>
 <div class="field" style="grid-column:1/-1"><label><input id="aAgree" type="checkbox" required style="width:auto"> I consent to the group processing these KYC details for membership administration and agree to uphold the ULTIMADED HIPPIES constitution, objectives, values, by-laws and guidelines.</label></div>
-<div><button class="success">Submit Application for Executive Review</button></div></form></div></section>
+<div><button class="success">Submit Application for Executive Review</button></div></form>
+<div id="registrationPaymentCard" class="card" style="margin-top:14px;border:2px solid #16a34a;background:#f0fdf4">
+<h3>📲 Registration Fee — M-PESA STK Push</h3>
+<p>New applicants can pay the Ksh 1,500 registration fee directly from New Member Access. After you submit the application, this section can also retry the prompt if the first STK request did not reach the phone.</p>
+<div class="grid g2"><div class="field"><label>M-PESA Phone</label><input id="registrationPayPhone" inputmode="tel" placeholder="07XXXXXXXX or 2547XXXXXXXX"></div><div class="field"><label>Registration Fee</label><input value="1500" disabled></div></div>
+<button class="success" type="button" onclick="retryRegistrationSTK()">Send / Retry Ksh 1,500 M-PESA STK Push</button>
+<div id="registrationPayStatus" class="notice" style="display:none;margin-top:10px" role="status"></div>
+</div></div></section>
 
 <section id="members" class="section member-only-section">
 <div class="card executive-only" style="display:none"><h2>🔐 Executive KYC Review Queue</h2>
@@ -1751,6 +1758,29 @@ function loadOfficeBearers(){
   });
 }
 
+let databaseRealtimeUnsubscribe=null;
+let lastApplicationId='';
+async function startDatabaseRealtimeSync(){
+  if(databaseRealtimeUnsubscribe)return;
+  try{
+    if(!await window.HIPPIES_FIREBASE_READY)return;
+    const {doc,onSnapshot}=await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');
+    const ref=doc(window.HIPPIES_FIREBASE.firebaseDb,'portalData','main');
+    databaseRealtimeUnsubscribe=onSnapshot(ref,(snap)=>{
+      if(!snap.exists())return;
+      const remote=snap.data()||{};
+      db={...db,...remote};
+      ['members','applications','contributions','payments','merry','welfare','meetings','liveMeetings','fines','conflicts','funds','audits','elections','candidates','votes','tableBanking','loans','loanPayments','dividendRuns'].forEach(k=>{db[k]=Array.isArray(remote[k])?remote[k]:[]});
+      db.electedLeaders=db.electedLeaders||{};
+      db.applications=(db.applications||[]).map(a=>({...a,approvals:{chairman:!!(a.approvals&&a.approvals.chairman),secretary:!!(a.approvals&&a.approvals.secretary),treasurer:!!(a.approvals&&a.approvals.treasurer)}}));
+      localStorage.setItem('ultimatedHappiesDB',JSON.stringify(db));
+      renderAll();
+      const app=lastApplicationId ? db.applications.find(a=>a.id===lastApplicationId) : null;
+      if(app){const el=document.getElementById('registrationPayStatus');if(el){el.style.display='block';el.textContent=app.paymentStatus||'Registration fee pending';}}
+    },err=>console.warn('Realtime database sync failed:',err));
+  }catch(e){console.warn('Could not start realtime database sync:',e)}
+}
+
 async function syncDatabaseToFirebase(){try{if(!await window.HIPPIES_FIREBASE_READY)return;const {doc,setDoc}=await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');await setDoc(doc(window.HIPPIES_FIREBASE.firebaseDb,'portalData','main'),{...db,updatedAt:new Date().toISOString()},{merge:false})}catch(e){console.warn('Firebase sync failed; local cache retained.',e)}}
 async function loadDatabaseFromFirebase(){try{if(!await window.HIPPIES_FIREBASE_READY)return false;const {doc,getDoc}=await import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js');const snap=await getDoc(doc(window.HIPPIES_FIREBASE.firebaseDb,'portalData','main'));if(!snap.exists())return false;const remote=snap.data();db={...db,...remote};['members','applications','contributions','payments','merry','welfare','meetings','liveMeetings','fines','conflicts','funds','audits','elections','candidates','votes','tableBanking','loans','loanPayments','dividendRuns'].forEach(k=>{if(!Array.isArray(remote[k]))remote[k]=[];db[k]=remote[k]});db.electedLeaders=db.electedLeaders||{}; db.applications=(db.applications||[]).map(a=>({...a,approvals:{chairman:!!(a.approvals&&a.approvals.chairman),secretary:!!(a.approvals&&a.approvals.secretary),treasurer:!!(a.approvals&&a.approvals.treasurer)}})); localStorage.setItem('ultimatedHappiesDB',JSON.stringify(db));return true}catch(e){console.warn('Firebase load failed; using local cache.',e);return false}}
 
@@ -2039,6 +2069,8 @@ async function addApplication(e){
     const [idFront,idBack,signature]=await Promise.all([readImageFile(aIdFront.files[0]),readImageFile(aIdBack.files[0]),readImageFile(aSignature.files[0])]);
     const now=new Date();
     const applicationId='APP-'+now.getTime()+Math.random().toString(16).slice(2);
+    lastApplicationId=applicationId;
+    const regPhoneEl=document.getElementById('registrationPayPhone'); if(regPhoneEl) regPhoneEl.value=applicantPhone;
     const application={id:applicationId,name:aName.value.trim(),age,phone:applicantPhone,residence:aResidence.value.trim(),idNo,idFront,idBack,signature,reason:aReason.value.trim(),date:now.toISOString().slice(0,10),submittedAt:now.toISOString(),reviewDeadline:new Date(now.getTime()+7*86400000).toISOString(),earliestApprovalAt:new Date(now.getTime()+86400000).toISOString(),status:'Pending KYC Review — 0/3 Required Approvals',approvals:{chairman:false,secretary:false,treasurer:false},approvalNames:{chairman:'',secretary:'',treasurer:''},finalized:false,registrationFee:1500,paymentStatus:'Registration fee pending'};
     db.applications.push(application);
     save();
@@ -2047,6 +2079,7 @@ async function addApplication(e){
     const result=await initiatePayHeroPayment(applicantPhone,1500,'Registration Fee', 'application', applicationId);
     if(result&&result.success){
       application.paymentReference=result.reference||'';
+      application.externalPaymentReference=result.external_reference||'';
       application.paymentStatus='STK Initiated — Awaiting M-PESA Confirmation';
       save();
       toast('Application submitted and Ksh 1,500 M-PESA STK Push sent. Check the applicant phone and enter the M-PESA PIN.');
@@ -2135,13 +2168,30 @@ async function initiatePayHeroPayment(phone,amount,purpose,sourceType,sourceId){
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.success) throw new Error(data.message||'Could not initiate M-PESA STK Push.');
   db.payments=db.payments||[];
-  db.payments.unshift({id:'STK-'+Date.now()+Math.random().toString(16).slice(2),date:new Date().toISOString().slice(0,10),member:currentMember?.name||'New Member Applicant',amount,method:'M-PESA STK Push',purpose,reference:data.reference||'Pending',status:'STK Initiated — Awaiting Confirmation',phone:normalized,sourceType:sourceType||'section',sourceId:sourceId||'',submittedAt:new Date().toISOString()});
+  db.payments.unshift({id:'STK-'+Date.now()+Math.random().toString(16).slice(2),date:new Date().toISOString().slice(0,10),member:currentMember?.name||'New Member Applicant',amount,method:'M-PESA STK Push',purpose,reference:data.reference||'Pending',externalReference:data.external_reference||'',status:'STK Initiated — Awaiting Confirmation',phone:normalized,sourceType:sourceType||'section',sourceId:sourceId||'',submittedAt:new Date().toISOString()});
   save();
   return data;
 }
 function fillPaymentPhones(){
   const phone=currentMember?.phone||'';
   ['contribPayPhone','tbPayPhone','merryPayPhone'].forEach(id=>{const el=document.getElementById(id);if(el && !el.value)el.value=phone});
+}
+
+async function retryRegistrationSTK(){
+  const phone=(document.getElementById('registrationPayPhone')?.value||'').trim();
+  const status=document.getElementById('registrationPayStatus');
+  if(!phone)return toast('Enter the applicant M-PESA phone number.');
+  status.style.display='block';status.textContent='Sending Ksh 1,500 registration STK Push…';
+  try{
+    let app=lastApplicationId ? db.applications.find(a=>a.id===lastApplicationId) : null;
+    if(!app){
+      const n=phone.replace(/\D/g,'');
+      app=(db.applications||[]).slice().reverse().find(a=>String(a.phone||'').replace(/\D/g,'')===n && !a.finalized);
+    }
+    const data=await initiatePayHeroPayment(phone,1500,'Registration Fee','application',app?.id||'');
+    if(app){app.paymentReference=data.reference||app.paymentReference||'';app.externalPaymentReference=data.external_reference||app.externalPaymentReference||'';app.paymentStatus='STK Initiated — Awaiting M-PESA Confirmation';save();lastApplicationId=app.id;}
+    status.textContent='STK Push sent. Check the applicant phone and enter the M-PESA PIN. Reference: '+(data.reference||'pending')+'.';
+  }catch(err){status.textContent=err.message||'Could not initiate M-PESA STK Push.';toast(status.textContent)}
 }
 
 async function startPayHeroSTK(){
@@ -2435,7 +2485,7 @@ window.adminUnlockPortal = adminUnlockPortal;
 window.adminLockPortal = adminLockPortal;
 window.saveElectedLeadersManually = saveElectedLeadersManually;
 window.autoSaveElectedLeaders = autoSaveElectedLeaders;
-window.recordTableBanking=recordTableBanking;window.copyPaymentDetails=copyPaymentDetails;window.startPayHeroSTK=startPayHeroSTK;window.paySection=paySection;window.payTableBanking=payTableBanking;window.payMerryGoRound=payMerryGoRound;window.submitPayment=submitPayment;window.verifyPayment=verifyPayment;window.rejectPayment=rejectPayment;window.removePayment=removePayment;window.recordLoanPayment=recordLoanPayment;window.applyForLoan=applyForLoan;window.approveLoan=approveLoan;window.calculateDividendRun=calculateDividendRun;window.extendApplicationReview=extendApplicationReview;window.renderLoanEligibility=renderLoanEligibility;
+window.recordTableBanking=recordTableBanking;window.copyPaymentDetails=copyPaymentDetails;window.retryRegistrationSTK=retryRegistrationSTK;window.startPayHeroSTK=startPayHeroSTK;window.paySection=paySection;window.payTableBanking=payTableBanking;window.payMerryGoRound=payMerryGoRound;window.submitPayment=submitPayment;window.verifyPayment=verifyPayment;window.rejectPayment=rejectPayment;window.removePayment=removePayment;window.recordLoanPayment=recordLoanPayment;window.applyForLoan=applyForLoan;window.approveLoan=approveLoan;window.calculateDividendRun=calculateDividendRun;window.extendApplicationReview=extendApplicationReview;window.renderLoanEligibility=renderLoanEligibility;
 
 window.addEventListener('keydown',function(e){if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='d'){e.preventDefault();openDeveloperControl();}});
 window.addEventListener('DOMContentLoaded',async function(){
@@ -2446,6 +2496,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   applyAccess();
   const logo=document.querySelector('.logo');const authLogo=document.getElementById('authLogo');if(authLogo&&logo)authLogo.src='./logo.png'; if(authLogo.naturalWidth===0) authLogo.src='./icon-512.png';
   await loadDatabaseFromFirebase();renderAll();
+  await startDatabaseRealtimeSync();
   // Start the shared license listener before finishing initialization.
   await startGlobalLicenseSync();
   applyAdminVisibility();

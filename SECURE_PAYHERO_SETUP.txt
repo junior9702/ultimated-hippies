@@ -1,0 +1,53 @@
+ULTIMATED HIPPIES — PAYHERO M-PESA STK PUSH
+SECURE NETLIFY SETUP
+
+IMPORTANT:
+The PayHero username/password, channel ID and account ID are SERVER SECRETS.
+They are intentionally NOT embedded in index.html or browser JavaScript.
+The payment functions read them from Netlify Environment Variables.
+
+1. Deploy this folder to Netlify.
+2. In Netlify open:
+   Site configuration → Environment variables
+3. Add these variables:
+
+   PAYHERO_API_USERNAME
+   PAYHERO_API_PASSWORD
+   PAYHERO_CHANNEL_ID
+   PAYHERO_ACCOUNT_ID
+   PAYHERO_CALLBACK_URL
+   PAYHERO_BASE_URL
+
+   PAYHERO_BASE_URL can be:
+   https://api.payhero.africa
+
+4. PAYHERO_CALLBACK_URL must point to:
+   https://YOUR-NETLIFY-DOMAIN/api/payhero-callback
+
+5. Add your Firebase Admin variables if this portal uses Firebase:
+   FIREBASE_SERVICE_ACCOUNT_JSON
+   OR:
+   FIREBASE_PROJECT_ID
+   FIREBASE_CLIENT_EMAIL
+   FIREBASE_PRIVATE_KEY
+
+6. Redeploy after saving environment variables.
+
+The browser calls:
+   /api/payhero-stk
+
+Netlify routes it to:
+   /.netlify/functions/payhero-stk
+
+The PayHero credentials remain on the server and are never returned to the browser.
+
+DO NOT put real PayHero credentials in:
+- index.html
+- app.js
+- public JavaScript
+- GitHub
+- README files
+- chat messages/screenshots
+
+If credentials have already been committed to GitHub or exposed publicly,
+rotate/regenerate them in PayHero before going live.
