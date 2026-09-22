@@ -249,6 +249,53 @@ function findReferenceFields(body){
   return refs;
 }
 
+
+function inspectShape(value, path='', out=[], depth=0){
+  if(depth>5 || out.length>250) return out;
+  if(value===null){ out.push({path:path||'$',type:'null'}); return out; }
+  if(Buffer.isBuffer(value)){ out.push({path:path||'$',type:'buffer',length:value.length}); return out; }
+  if(Array.isArray(value)){
+    out.push({path:path||'$',type:'array',length:value.length});
+    value.slice(0,10).forEach((v,i)=>inspectShape(v,`${path||'$'}[${i}]`,out,depth+1));
+    return out;
+  }
+  if(typeof value==='object'){
+    const keys=Object.keys(value);
+    out.push({path:path||'$',type:'object',keys:keys.slice(0,100)});
+    for(const key of keys.slice(0,100)){
+      inspectShape(value[key],`${path||'$'}.${key}`,out,depth+1);
+    }
+    return out;
+  }
+  out.push({path:path||'$',type:typeof value});
+  return out;
+}
+
+function collectReferenceCandidates(value, path='', out=[], seen=new Set(), depth=0){
+  if(depth>6 || out.length>50 || value===null || value===undefined) return out;
+  if(typeof value==='object'){
+    if(seen.has(value)) return out;
+    seen.add(value);
+    if(Array.isArray(value)){
+      value.slice(0,20).forEach((v,i)=>collectReferenceCandidates(v,`${path||'$'}[${i}]`,out,seen,depth+1));
+    }else{
+      for(const [key,v] of Object.entries(value).slice(0,150)){
+        const keyLower=key.toLowerCase();
+        if(
+          keyLower.includes('reference') ||
+          keyLower.includes('transaction') ||
+          keyLower.includes('external')
+        ){
+          const printable=(v!==null && typeof v!=='object') ? String(v) : '[object]';
+          out.push({path:`${path||'$'}.${key}`,value:printable.slice(0,200)});
+        }
+        if(v && typeof v==='object') collectReferenceCandidates(v,`${path||'$'}.${key}`,out,seen,depth+1);
+      }
+    }
+  }
+  return out;
+}
+
 async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({success:false,message:'Method not allowed'});
   try{
@@ -258,10 +305,13 @@ async function handler(req,res){
     const externalReference=refs.externalReference;
     const reference=refs.reference;
     if(!externalReference && !reference){
-      console.error('PayHero callback rejected: missing reference fields', {
+      console.error('PAYHERO CALLBACK DIAGNOSTIC: missing reference fields', {
         contentType:req.headers?.['content-type']||'',
-        bodyKeys:body && typeof body==='object' ? Object.keys(body) : [],
-        rawType:typeof rawBody
+        contentLength:req.headers?.['content-length']||'',
+        rawType:typeof rawBody,
+        rawShape:inspectShape(rawBody).slice(0,120),
+        bodyShape:inspectShape(body).slice(0,120),
+        referenceCandidates:collectReferenceCandidates(rawBody)
       });
       // Acknowledge malformed callbacks so the provider does not retry
       // indefinitely. No ledger update is performed without a reference.
