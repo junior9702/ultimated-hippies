@@ -42,12 +42,11 @@ PAYHERO STK PUSH SETUP
 1. Deploy this project to Vercel (the /api/payhero-stk.js serverless function requires Vercel).
 2. In PayHero, create/register the collection channel for the group's destination Paybill/Till and obtain its channel ID.
 3. In Vercel > Project Settings > Environment Variables, set:
-   PAYHERO_API_USERNAME = grcRFMk0dsYq9O3cFG6m
+   PAYHERO_API_USERNAME =grcRFMk0dsYq9O3cFG6m
    PAYHERO_API_PASSWORD = 0hYjjesFmnacb0MCESZ0P8dPMpB3VeGLNt7ikoLA
-   PAYHERO_CHANNEL_ID = 12910
-   PAYHERO_ACCOUNT_ID = 12405
-   PAYHERO_CALLBACK_URL =https://ultimated-hippies.vercel.app/api/payhero-callback
-
+   PAYHERO_CHANNEL_ID =12910
+   PAYHERO_ACCOUNT_ID =  12405
+   PAYHERO_CALLBACK_URL = https://ultimated-hippies.vercel.app/api/payhero-callback
 4. Redeploy after setting environment variables.
 5. Redeploy after changing any environment variable.
 6. Test using a low amount and a phone you control.
@@ -83,7 +82,7 @@ FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
 
 Recommended explicit callback URLs:
-Vercel: https://ultimated-hippies.vercel.app/api/payhero-callback
+Vercel:https://ultimated-hippies.vercel.app/api/payhero-callback\
 Netlify: https://YOUR-DOMAIN/api/payhero-callback
 
 IMPORTANT: The callback endpoint is the source of truth for payment completion. An STK request being accepted is not a completed payment. PayHero's callback reports final success/failed status; only a successful callback is marked Verified.

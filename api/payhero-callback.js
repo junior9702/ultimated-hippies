@@ -160,13 +160,45 @@ function applyVerifiedLedger(data, payment, body){
   }
 }
 
+async function readCallbackBody(req){
+  // Vercel normally provides req.body for JSON requests, but PayHero callback
+  // deliveries can be represented differently by the platform/runtime. Accept
+  // JSON, form-encoded, and a few common wrapper shapes so a valid callback
+  // is not rejected before it reaches Firestore.
+  let body=req?.body;
+  if(body && typeof body==='object' && !Buffer.isBuffer(body)) return body;
+  if(Buffer.isBuffer(body)) body=body.toString('utf8');
+  if(typeof body==='string' && body.trim()){
+    try { return JSON.parse(body); } catch {}
+    try { return Object.fromEntries(new URLSearchParams(body)); } catch {}
+  }
+  return {};
+}
+
+function unwrapCallbackBody(input){
+  let body=input||{};
+  // Accept common wrappers such as {data:{...}} or {payload:{...}}.
+  for(let i=0;i<3;i++){
+    if(body && typeof body==='object' && body.data && typeof body.data==='object' && !Array.isArray(body.data)){ body=body.data; continue; }
+    if(body && typeof body==='object' && body.payload && typeof body.payload==='object' && !Array.isArray(body.payload)){ body=body.payload; continue; }
+    break;
+  }
+  return body||{};
+}
+
 async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({success:false,message:'Method not allowed'});
   try{
-    const body=typeof req.body==='string' ? JSON.parse(req.body||'{}') : (req.body||{});
-    const externalReference=String(body.external_reference||'').trim();
-    const reference=String(body.reference||'').trim();
-    if(!externalReference && !reference) return res.status(400).json({success:false,message:'Missing payment reference'});
+    const body=unwrapCallbackBody(await readCallbackBody(req));
+    const externalReference=String(body.external_reference ?? body.externalReference ?? body.merchant_reference ?? '').trim();
+    const reference=String(body.reference ?? body.payhero_reference ?? '').trim();
+    if(!externalReference && !reference){
+      console.error('PayHero callback rejected: missing reference fields', {
+        contentType:req.headers?.['content-type']||'',
+        bodyKeys:body && typeof body==='object' ? Object.keys(body) : []
+      });
+      return res.status(400).json({success:false,message:'Missing payment reference'});
+    }
 
     const db=initFirebaseAdmin();
     const ref=db.collection('portalData').doc('main');
