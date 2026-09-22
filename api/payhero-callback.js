@@ -30,11 +30,10 @@ function normalizePhone(value){
 }
 
 function statusLabel(body){
-  const status=String(body?.status||'').trim().toLowerCase();
-  // PayHero documents final callbacks as status=success/failed and
-  // success as the boolean mirror. Accept common casing/boolean variants.
-  if(status==='success' || body?.success===true || String(body?.success||'').toLowerCase()==='true') return 'Verified';
-  if(status==='failed' || body?.success===false || String(body?.success||'').toLowerCase()==='false') return 'Failed';
+  const s=String(body?.status ?? body?.callback_status ?? body?.Status ?? '').trim().toLowerCase();
+  const rc=body?.result_code;
+  if(rc===0 || s==='success' || s==='completed' || s==='paid' || body?.success===true) return 'Verified';
+  if(rc!==undefined && Number(rc)!==0 || s==='failed' || s==='failure' || s==='cancelled' || body?.success===false) return 'Failed';
   return 'Pending Confirmation';
 }
 
@@ -196,24 +195,37 @@ async function readCallbackBody(req){
 
 function unwrapCallbackBody(input){
   let body=input||{};
-  // Accept common wrappers and nested callback objects.
-  for(let i=0;i<8;i++){
+  for(let i=0;i<10;i++){
     if(typeof body==='string'){
-      try { body=JSON.parse(body); continue; } catch {}
+      try{ body=JSON.parse(body); continue; }catch{}
     }
-    if(body && typeof body==='object' && body.data && typeof body.data==='object' && !Array.isArray(body.data)){ body=body.data; continue; }
-    if(body && typeof body==='object' && body.payload && typeof body.payload==='object' && !Array.isArray(body.payload)){ body=body.payload; continue; }
-    if(body && typeof body==='object' && body.result && typeof body.result==='object' && !Array.isArray(body.result)){ body=body.result; continue; }
-    if(body && typeof body==='object' && body.callback && typeof body.callback==='object' && !Array.isArray(body.callback)){ body=body.callback; continue; }
+    if(!body || typeof body!=='object') break;
+    if(body.data && typeof body.data==='object' && !Array.isArray(body.data)){ body=body.data; continue; }
+    if(body.payload && typeof body.payload==='object' && !Array.isArray(body.payload)){ body=body.payload; continue; }
+    if(body.result && typeof body.result==='object' && !Array.isArray(body.result)){ body=body.result; continue; }
+    if(body.callback && typeof body.callback==='object' && !Array.isArray(body.callback)){ body=body.callback; continue; }
+    // Actual PayHero callback observed in production:
+    // { status: boolean, response: { ExternalReference, ResultCode, ... }, forward_url }
+    if(body.response!==undefined && body.response!==null){
+      if(typeof body.response==='string'){
+        try{ body=JSON.parse(body.response); continue; }catch{}
+      }else if(typeof body.response==='object' && !Array.isArray(body.response)){
+        body=body.response; continue;
+      }
+    }
     break;
   }
   return body||{};
 }
 
-function firstField(obj, names){
+function firstField(obj,names){
+  if(!obj || typeof obj!=='object') return '';
   for(const name of names){
-    const value=obj?.[name];
-    if(value!==undefined && value!==null && String(value).trim()!=='') return String(value).trim();
+    if(obj[name]!==undefined && obj[name]!==null && String(obj[name]).trim()!=='') return String(obj[name]).trim();
+  }
+  const wanted=new Set(names.map(n=>String(n).toLowerCase()));
+  for(const [k,v] of Object.entries(obj)){
+    if(wanted.has(String(k).toLowerCase()) && v!==undefined && v!==null && String(v).trim()!=='') return String(v).trim();
   }
   return '';
 }
@@ -300,7 +312,19 @@ async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({success:false,message:'Method not allowed'});
   try{
     const rawBody=await readCallbackBody(req);
-    const body=unwrapCallbackBody(rawBody);
+    const unwrapped=unwrapCallbackBody(rawBody);
+    const body={
+      ...unwrapped,
+      external_reference:firstField(unwrapped,['external_reference','externalReference','ExternalReference','merchant_reference','merchantReference','client_reference','clientReference']),
+      reference:firstField(unwrapped,['reference','Reference','payhero_reference','payHeroReference']),
+      amount:unwrapped.amount ?? unwrapped.Amount,
+      phone_number:firstField(unwrapped,['phone_number','phone','Phone']),
+      provider_reference:firstField(unwrapped,['provider_reference','providerReference','MpesaReceiptNumber']),
+      transaction_id:firstField(unwrapped,['transaction_id','transactionId','CheckoutRequestID','MerchantRequestID']),
+      message:firstField(unwrapped,['message','ResultDesc','resultDesc']),
+      result_code:unwrapped.ResultCode!==undefined ? Number(unwrapped.ResultCode) : undefined,
+      callback_status:firstField(unwrapped,['status','Status'])
+    };
     const refs=findReferenceFields(body);
     const externalReference=refs.externalReference;
     const reference=refs.reference;
