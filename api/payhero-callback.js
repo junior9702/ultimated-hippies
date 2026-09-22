@@ -161,43 +161,111 @@ function applyVerifiedLedger(data, payment, body){
 }
 
 async function readCallbackBody(req){
-  // Vercel normally provides req.body for JSON requests, but PayHero callback
-  // deliveries can be represented differently by the platform/runtime. Accept
-  // JSON, form-encoded, and a few common wrapper shapes so a valid callback
-  // is not rejected before it reaches Firestore.
+  // PayHero documents application/json, but some serverless runtimes expose
+  // the request body differently. Handle parsed objects, strings, buffers,
+  // and finally read the raw request stream when req.body is unavailable.
   let body=req?.body;
+
   if(body && typeof body==='object' && !Buffer.isBuffer(body)) return body;
+
   if(Buffer.isBuffer(body)) body=body.toString('utf8');
+
   if(typeof body==='string' && body.trim()){
     try { return JSON.parse(body); } catch {}
     try { return Object.fromEntries(new URLSearchParams(body)); } catch {}
   }
+
+  if(req && typeof req.on==='function'){
+    const chunks=[];
+    try{
+      await new Promise((resolve,reject)=>{
+        req.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk))));
+        req.on('end', resolve);
+        req.on('error', reject);
+      });
+      const raw=Buffer.concat(chunks).toString('utf8').trim();
+      if(raw){
+        try { return JSON.parse(raw); } catch {}
+        try { return Object.fromEntries(new URLSearchParams(raw)); } catch {}
+      }
+    }catch{}
+  }
+
   return {};
 }
 
 function unwrapCallbackBody(input){
   let body=input||{};
-  // Accept common wrappers such as {data:{...}} or {payload:{...}}.
-  for(let i=0;i<3;i++){
+  // Accept common wrappers and nested callback objects.
+  for(let i=0;i<8;i++){
+    if(typeof body==='string'){
+      try { body=JSON.parse(body); continue; } catch {}
+    }
     if(body && typeof body==='object' && body.data && typeof body.data==='object' && !Array.isArray(body.data)){ body=body.data; continue; }
     if(body && typeof body==='object' && body.payload && typeof body.payload==='object' && !Array.isArray(body.payload)){ body=body.payload; continue; }
+    if(body && typeof body==='object' && body.result && typeof body.result==='object' && !Array.isArray(body.result)){ body=body.result; continue; }
+    if(body && typeof body==='object' && body.callback && typeof body.callback==='object' && !Array.isArray(body.callback)){ body=body.callback; continue; }
     break;
   }
   return body||{};
 }
 
+function firstField(obj, names){
+  for(const name of names){
+    const value=obj?.[name];
+    if(value!==undefined && value!==null && String(value).trim()!=='') return String(value).trim();
+  }
+  return '';
+}
+
+function findReferenceFields(body){
+  const refs={externalReference:'', reference:''};
+  const queue=[body];
+  const seen=new Set();
+  while(queue.length){
+    const current=queue.shift();
+    if(!current || typeof current!=='object' || seen.has(current)) continue;
+    seen.add(current);
+
+    refs.externalReference ||= firstField(current, [
+      'external_reference','externalReference','merchant_reference',
+      'merchantReference','client_reference','clientReference'
+    ]);
+    refs.reference ||= firstField(current, [
+      'reference','payhero_reference','payHeroReference'
+    ]);
+
+    if(refs.externalReference && refs.reference) break;
+
+    for(const value of Object.values(current)){
+      if(value && typeof value==='object' && !Array.isArray(value)) queue.push(value);
+      else if(Array.isArray(value)){
+        for(const item of value){
+          if(item && typeof item==='object') queue.push(item);
+        }
+      }
+    }
+  }
+  return refs;
+}
+
 async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({success:false,message:'Method not allowed'});
   try{
-    const body=unwrapCallbackBody(await readCallbackBody(req));
-    const externalReference=String(body.external_reference ?? body.externalReference ?? body.merchant_reference ?? '').trim();
-    const reference=String(body.reference ?? body.payhero_reference ?? '').trim();
+    const rawBody=await readCallbackBody(req);
+    const body=unwrapCallbackBody(rawBody);
+    const refs=findReferenceFields(body);
+    const externalReference=refs.externalReference;
+    const reference=refs.reference;
     if(!externalReference && !reference){
       console.error('PayHero callback rejected: missing reference fields', {
         contentType:req.headers?.['content-type']||'',
-        bodyKeys:body && typeof body==='object' ? Object.keys(body) : []
+        bodyKeys:body && typeof body==='object' ? Object.keys(body) : [],
+        rawType:typeof rawBody
       });
-      return res.status(400).json({success:false,message:'Missing payment reference'});
+      // Acknowledge malformed callbacks so the provider does not retry
+      // indefinitely. No ledger update is performed without a reference.
+      return res.status(200).json({success:true,received:true,matched:false,message:'Callback received but no payment reference was found'});
     }
 
     const db=initFirebaseAdmin();
